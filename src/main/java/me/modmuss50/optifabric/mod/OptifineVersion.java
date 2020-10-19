@@ -3,13 +3,14 @@ package me.modmuss50.optifabric.mod;
 import com.google.gson.Gson;
 import com.google.gson.JsonObject;
 import me.modmuss50.optifabric.patcher.ASMUtils;
+import net.fabricmc.loader.ModContainer;
 import net.fabricmc.loader.api.FabricLoader;
-import net.minecraft.client.main.Main;
 import org.objectweb.asm.tree.ClassNode;
 import org.objectweb.asm.tree.FieldNode;
 import org.zeroturnaround.zip.ZipUtil;
 
 import java.io.*;
+import java.net.URISyntaxException;
 import java.util.jar.JarEntry;
 import java.util.jar.JarFile;
 
@@ -21,10 +22,46 @@ public class OptifineVersion {
 	public static JarType jarType;
 
 	public static File findOptifineJar() throws IOException {
+		ModContainer optifabric = (ModContainer) FabricLoader.getInstance().getModContainer("optifabric").get();
+		File optifineJar = null;
+
+		try {
+			File optifabricDir = new File(optifabric.getOriginUrl().toURI()).getParentFile();
+			File[] mods = optifabricDir.listFiles();
+
+			if (mods != null) {
+				for (File file : mods) {
+					if (file.isDirectory()) {
+						continue;
+					}
+					if (file.getName().endsWith(".jar")) {
+						JarType type = getJarType(file);
+						if (type.error) {
+							throw new RuntimeException("An error occurred when trying to find the optifine jar: " + type.name());
+						}
+						if (type == JarType.OPIFINE_MOD || type == JarType.OPTFINE_INSTALLER) {
+							if(optifineJar != null){
+								OptifabricError.setError("Found 2 or more optifine jars, please ensure you only have 1 copy of optifine in the mods folder!");
+								throw new FileNotFoundException("Multiple optifine jars");
+							}
+							jarType = type;
+							optifineJar =  file;
+						}
+					}
+				}
+			}
+
+			if(optifineJar != null){
+				return optifineJar;
+			}
+
+		} catch (URISyntaxException | NullPointerException e) {}
+
+		//fallback to mods dir if not found in folder with optifabric jar
+		
 		File modsDir = new File(FabricLoader.getInstance().getGameDirectory(), "mods");
 		File[] mods = modsDir.listFiles();
 
-		File optifineJar = null;
 
 		if (mods != null) {
 			for (File file : mods) {
