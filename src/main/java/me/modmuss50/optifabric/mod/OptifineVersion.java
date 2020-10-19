@@ -28,29 +28,7 @@ public class OptifineVersion {
 
 		try {
 			File optifabricDir = new File(optifabric.getOriginUrl().toURI()).getParentFile();
-			File[] mods = optifabricDir.listFiles();
-
-			if (mods != null) {
-				for (File file : mods) {
-					if (file.isDirectory()) {
-						continue;
-					}
-					if (file.getName().endsWith(".jar")) {
-						JarType type = getJarType(file);
-						if (type.error) {
-							throw new RuntimeException("An error occurred when trying to find the optifine jar: " + type.name());
-						}
-						if (type == JarType.OPIFINE_MOD || type == JarType.OPTFINE_INSTALLER) {
-							if(optifineJar != null){
-								OptifabricError.setError("Found 2 or more optifine jars, please ensure you only have 1 copy of optifine in the mods folder!");
-								throw new FileNotFoundException("Multiple optifine jars");
-							}
-							jarType = type;
-							optifineJar =  file;
-						}
-					}
-				}
-			}
+			optifineJar = searchFolder(optifabricDir);
 
 			if(optifineJar != null){
 				return optifineJar;
@@ -59,10 +37,20 @@ public class OptifineVersion {
 		} catch (URISyntaxException | NullPointerException e) {}
 
 		//fallback to mods dir if not found in folder with optifabric jar
-		
 		File modsDir = new File(FabricLoader.getInstance().getGameDirectory(), "mods");
-		File[] mods = modsDir.listFiles();
+		optifineJar = searchFolder(modsDir);
 
+		if(optifineJar != null){
+			return optifineJar;
+		}
+
+		OptifabricError.setError("OptiFabric could not find the Optifine jar in the mods folder.");
+		throw new FileNotFoundException("Could not find optifine jar");
+	}
+
+	private static File searchFolder(File folder) throws IOException {
+		File[] mods = folder.listFiles();
+		File optifineJar = null;
 
 		if (mods != null) {
 			for (File file : mods) {
@@ -85,13 +73,7 @@ public class OptifineVersion {
 				}
 			}
 		}
-
-		if(optifineJar != null){
-			return optifineJar;
-		}
-
-		OptifabricError.setError("OptiFabric could not find the Optifine jar in the mods folder.");
-		throw new FileNotFoundException("Could not find optifine jar");
+		return optifineJar;
 	}
 
 	private static JarType getJarType(File file) throws IOException {
